@@ -1,0 +1,76 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: aws-rds
+  title: deploymet of an rds service in aws
+  description: deploymet of an rds service in aws
+  tags:
+    - torque
+    - lambda
+spec:
+  type: resource
+  parameters:
+    - title: New Lambda function
+      required:
+        - componentName
+        - region
+      properties:
+        componentName: # for catalog metadata, description of the repo, used for "repo" of octokit (must match what goes into repourl)
+          title: Function name
+          type: string
+          description: This will be the name of the space and environment in Torque
+          ui:autofocus: true
+          ui:options:
+            rows: 5
+
+        region:
+          title: API gateway region
+          description: The API Gateway region
+          type: string
+          enum:
+            - eu-west-1
+            - us-east-1
+        
+    - title: Repo details
+      required:
+        - repoUrl
+        - owner
+      properties:
+        repoUrl: # creating github repo and for registering catalog component
+          title: Repository
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - github.com
+            allowedOwners:
+              - QualiTorque
+        owner:
+          title: Owner
+          type: string
+          description: Owner of the service
+          ui:field: OwnerPicker
+          ui:options:
+            allowedKinds:
+              - Group
+  
+  steps:
+    - name: Deploy with Torque
+      id: torque-app-id
+      action: torque:create-app
+      input:
+        serviceName: ${{ parameters.componentName }} # will be used as space, assets repo, blueprint repo and grain names
+        assetRepo: ${{ steps.publish.output.remoteUrl }}
+        blueprintRepo: ${{ steps.publish.output.remoteUrl }}
+        # blueprintRepo: 'https://github.com/QualiTorque/devops'
+        serviceAccount: 'default'
+        namespace: default
+        blueprintName: ${{ parameters.componentName }}
+        
+    - name: Register Component in Backstage
+      id: register
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps.publish.output.repoContentsUrl }}
+        catalogInfoPath: '/catalog-info.yaml'
+        
